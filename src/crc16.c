@@ -17,7 +17,7 @@ uint16_t crc16_ccitt_false(const uint8_t *p, size_t len)
             if(crc & 0x8000) //is CRC MSB set?
             {
                 //int promotion to 32b
-                crc = (crc << 1) ^ CRC16_CCITT_POLY //shift by one, then XOR
+                crc = (crc << 1) ^ CRC16_CCITT_POLY; //shift by one, then XOR
             }
             else
             {
