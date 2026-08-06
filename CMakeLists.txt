@@ -1,34 +1,28 @@
-#oldest version of CMake
+#minimum and policy set
 cmake_minimum_required(VERSION 3.16)
 
 #names the project and declares what language
 project(epc C)
 
-#adds build/compile_commands.json
+#generates build/compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-#requests C11, not a requirement if compiler can't
+#cmake standard C11
 set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_C_EXTENSIONS OFF)
+
+#build policy
+add_compile_options(-Wall -Wextra)
 
 #defines build target from source, no type keyword so defaults to static (libcrc.a)
 #static linking means CRC code is copied into the test binary at link time, with no runtime shared libary path to manage
-add_library(crc src/crc16.c)
-
-#adds flags to every target defined in directory and subdirs
-#catches C bugs that are technically legal but end up causing errors, like unused variables
-#older style
-#add_compile_options(-Wall -Wextra)
-
-#modern style, applied per target
-target_compile_options(crc PRIVATE -Wall -Wextra)
+add_library(crc src/core/crc16.c)
 
 #adds include/ to header search path.
-#PRIVATE: applies when compiling specific files only
-#INTERFACE: applies to consumers only
+#PRIVATE: use only for .c files that need
+#INTERFACE: use only for users sources
 #PUBLIC: both
-#crc16.c includes crc16.h so crc build target needs it
-#test_crc16.c compiles without any include path of its own
-#TODO: explain some more
 target_include_directories(crc PUBLIC include)
 
 #turns on test support and generates CTestTestfile.cmake in directory that ctest reads

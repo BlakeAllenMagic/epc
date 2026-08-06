@@ -1,4 +1,4 @@
-#include "crc16.h"
+#include "epc/crc16.h"
 
 //#define CRC16_CCITT_POLY 0x1021; //CCITT
 static const uint16_t CRC16_CCITT_POLY = 0x1021; //better modern practice
