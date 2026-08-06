@@ -13,7 +13,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 #build policy
-add_compile_options(-Wall -Wextra)
+add_compile_options(-Wall -Wextra -Werror)
 
 #defines build target from source, no type keyword so defaults to static (libcrc.a)
 #static linking means CRC code is copied into the test binary at link time, with no runtime shared libary path to manage
