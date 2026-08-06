@@ -4,8 +4,15 @@ cmake_minimum_required(VERSION 3.16)
 #names the project and declares what language
 project(epc C)
 
+#adds build/compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 #requests C11, not a requirement if compiler can't
 set(CMAKE_C_STANDARD 11)
+
+#defines build target from source, no type keyword so defaults to static (libcrc.a)
+#static linking means CRC code is copied into the test binary at link time, with no runtime shared libary path to manage
+add_library(crc src/crc16.c)
 
 #adds flags to every target defined in directory and subdirs
 #catches C bugs that are technically legal but end up causing errors, like unused variables
@@ -14,10 +21,6 @@ set(CMAKE_C_STANDARD 11)
 
 #modern style, applied per target
 target_compile_options(crc PRIVATE -Wall -Wextra)
-
-#defines build target from source, no type keyword so defaults to static (libcrc.a)
-#static linking means CRC code is copied into the test binary at link time, with no runtime shared libary path to manage
-add_library(crc src/crc16.c)
 
 #adds include/ to header search path.
 #PRIVATE: applies when compiling specific files only
