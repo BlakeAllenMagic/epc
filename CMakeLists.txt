@@ -32,6 +32,10 @@ enable_testing()
 #same as add library but produces a runnable binary at build/test_crc16
 add_executable(test_crc16 tests/test_crc16.c)
 
+#TODO: review what these are for
+target_compile_options(test_crc16 PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+target_link_options(test_crc16 PRIVATE -fsanitize=address,undefined)
+
 #links test against the library
 #beyond linking, makes the PUBLIC include path flow into test_crc16
 #also creates a dependency edge, so editing src/crc16.c and rebuilding relinks test automatically.
