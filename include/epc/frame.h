@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+// #include <stdbool.h>
 
 #define EPC_CEIL_DIV(n, d) (((n) + (d) - 1) / (d))
 
@@ -15,29 +16,35 @@
 
 _Static_assert(EPC_FRAME_COBS_MAX_ENCODED == 261, "encoded size arithmetic changed");
 
-typedef struct {
-    uint8_t buf[EPC_FRAME_COBS_MAX_ENCODED];
-    size_t  len;
-    int     bad;
-} epc_frame_decoder;
+typedef enum {
+    EPC_FRAME_ERR_TOO_LARGE     = -1, // exceeds frame cap
+    EPC_FRAME_ERR_MALFORMED     = -2, // delimiter mid frame
+    EPC_FRAME_ERR_TRUNCATED     = -3, // truncated frame
+} epc_frame_status;
+
+
+// /* STREAMING IMPLEMENTATION */
+// typedef struct {
+//     uint8_t frame_buf[EPC_FRAME_MAX_DECODED];
+//     size_t  frame_idx;
+//     int     bytes_to_next_codebyte; //int so impossible negative would be visible
+//     bool    frame_start;
+//     bool    prev_ff;
+//     bool    overflow;
+// } epc_frame_decoder;
+//
+// void epc_frame_decoder_init(epc_frame_decoder *d);
 
 //ENCODER 
 // it should refuse rather than truncate. Incomplete frame is bad.
 // output is complete and ready to hand to UART
 int epc_frame_encode(const uint8_t *payload, size_t len, uint8_t *out, size_t out_cap);
 
-//DECODER
-//init struct
-void epc_frame_decodeer_init(epc_frame_decoder *d);
+/* DECODER */
+// return value > 0: frame length
+// return value = 0: empty frame
+// return value < 0: error
+int epc_frame_decode(const uint8_t *input_buf, int in_len,
+                        uint8_t *frame_buf, int frame_cap);
 
-// state machine accepts arbitrary chunks of bytes
-// reports completed frames as it finds them
-// return > 0 : valid frame completed, out holds this many payload bytes
-// return 0   : input consumed, no frame yet.
-// return < 0 : error
-int epc_frame_decode(epc_frame_decoder *d,
-                    const uint8_t *in, size_t in_len,
-                    uint8_t *out, size_t out_cap,
-                    size_t *consumed);
-
-#endif /* FRAME_H */
+#endif /* EPC_FRAME_H */
