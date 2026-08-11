@@ -4,6 +4,15 @@
 
 #define DELIM 0x00
 
+//ENCODER 
+// it should refuse rather than truncate. Incomplete frame is bad.
+// output is complete and ready to hand to UART
+int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_buf, size_t out_cap)
+{
+    uint16_t encoded_len = payload_len + (int)(payload_len / 254) + 2;
+    
+}
+
 /*
 Decodes current frame from input buffer.
 Caller passes input buffer and length and struct pointer
