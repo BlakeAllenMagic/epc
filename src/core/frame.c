@@ -9,7 +9,18 @@
 // output is complete and ready to hand to UART
 int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_buf, size_t out_cap)
 {
-    uint16_t encoded_len = payload_len + (int)(payload_len / 254) + 2;
+    count = 1;
+    codebyte = 0;
+    out_idx = 0;
+    for(i = 0; i < payload len; i++){
+        if(payload[i] == 0x00){
+            output[codebyte] = count;
+            codebyte = out_idx;
+            count = 1
+        }
+        else output[out_idx] = payload[i];
+        out_idx++;
+    }
     
 }
 
