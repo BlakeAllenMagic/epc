@@ -5,16 +5,22 @@
 #include <stddef.h>
 // #include <stdbool.h>
 
-#define EPC_CEIL_DIV(n, d) (((n) + (d) - 1) / (d))
+/* Base constants */
+#define EPC_FRAME_MAX_PAYLOAD   256
+#define EPC_FRAME_CRC_LEN       2
+#define EPC_FRAME_DELIM_LEN     1
 
-#define EPC_FRAME_MAX_PAYLOAD       256
-#define EPC_FRAME_CRC_LEN           2
-#define EPC_FRAME_COBS_DELIM_LEN    1
-#define EPC_FRAME_MAX_DECODED       (EPC_FRAME_MAX_PAYLOAD + EPC_FRAME_CRC_LEN)
-#define EPC_FRAME_COBS_OVERHEAD     EPC_CEIL_DIV(EPC_FRAME_MAX_DECODED, 254)
-#define EPC_FRAME_COBS_MAX_ENCODED  (EPC_FRAME_MAX_DECODED + EPC_FRAME_COBS_OVERHEAD + EPC_FRAME_COBS_DELIM_LEN)
+// COBS output for n raw bytes, no delimiter
+#define EPC_COBS_ENCODED_LEN(n)   ((n) + (n) / 254 + 1)
 
-_Static_assert(EPC_FRAME_COBS_MAX_ENCODED == 261, "encoded size arithmetic changed");
+// Worst-case full frame for a payload of n bytes: COBS(payload + CRC) + delimiter
+#define EPC_FRAME_ENCODED_LEN(n)  (EPC_COBS_ENCODED_LEN((n) + EPC_FRAME_CRC_LEN) + EPC_FRAME_DELIM_LEN)
+
+// Buffer sizes
+#define EPC_FRAME_MAX_DECODED     (EPC_FRAME_MAX_PAYLOAD + EPC_FRAME_CRC_LEN)
+#define EPC_FRAME_MAX_ENCODED     EPC_FRAME_ENCODED_LEN(EPC_FRAME_MAX_PAYLOAD)
+
+_Static_assert(EPC_FRAME_MAX_ENCODED == 261, "encoded size arithmetic changed");
 
 typedef enum {
     EPC_FRAME_ERR_TOO_LARGE     = -1, // exceeds frame cap
