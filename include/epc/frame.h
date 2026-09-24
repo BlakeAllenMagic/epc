@@ -23,9 +23,16 @@
 _Static_assert(EPC_FRAME_MAX_ENCODED == 261, "encoded size arithmetic changed");
 
 typedef enum {
+    // common error for encode and decode
     EPC_FRAME_ERR_TOO_LARGE     = -1, // exceeds frame cap
-    EPC_FRAME_ERR_MALFORMED     = -2, // delimiter mid frame
+    // encode errors
+    EPC_FRAME_ERR_OVERFLOW      = -4; // encoded exceeds output buffer size
+    EPC_FRAME_OK                = 0;  // frame correctly encoded
+    // decode errors
+    EPC_FRAME_ERR_MALFORMED     = -2, // delimiter detected mid frame
     EPC_FRAME_ERR_TRUNCATED     = -3, // truncated frame
+    EPC_FRAME_CRC_MISMATCH      = -5,
+    // decode return value above zero indicates frame length
 } epc_frame_status;
 
 
