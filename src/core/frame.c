@@ -8,15 +8,19 @@
 // output is complete and ready to hand to UART
 int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_buf, size_t out_cap)
 {
+
+    // initialize encoding indexes
     uint16_t count_to_zero = 1;
     size_t codebyte = 0;
     size_t out_idx = 1;
 
+    if(payload_len > EPC_FRAME_MAX_PAYLOAD)
+        return EPC_FRAME_TOO_LARGE;
     //check if encoded payload length will be larger than output buf
-    if((payload_len + (payload_len / 254) + 2) > out_cap)
-        //raise error
+    if(EPC_FRAME_ENCODED_LEN(payload_len) > out_buf)
+        return EPC_FRAME_ERR_OVERFLOW;
 
-    //iterate over payload
+    /* PAYLOAD ENCODING BEGIN */
     for(size_t i = 0; i < payload_len; i++){
 
         //check if 0xFF count (doesn't use up an input byte)
@@ -58,11 +62,13 @@ int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_bu
         }
         out_idx++;
     }
+    
 
     //after payload, add delimiter
     //if empty payload, add initial 0x01
     if(payload_len == 0) out_buf[0] = 0x01;
     out_buf[out_idx] = 0x00;
+    /* PAYLOAD PROCESSING END */
     
 }
 
