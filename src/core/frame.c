@@ -5,22 +5,64 @@
 #define DELIM 0x00
 
 //ENCODER 
-// it should refuse rather than truncate. Incomplete frame is bad.
 // output is complete and ready to hand to UART
 int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_buf, size_t out_cap)
 {
-    count = 1;
-    codebyte = 0;
-    out_idx = 0;
-    for(i = 0; i < payload len; i++){
-        if(payload[i] == 0x00){
-            output[codebyte] = count;
+    uint16_t count_to_zero = 1;
+    size_t codebyte = 0;
+    size_t out_idx = 1;
+
+    //check if encoded payload length will be larger than output buf
+    if((payload_len + (payload_len / 254) + 2) > out_cap)
+        //raise error
+
+    //iterate over payload
+    for(size_t i = 0; i < payload_len; i++){
+
+        //check if 0xFF count (doesn't use up an input byte)
+        if(count_to_zero = 0xFF)
+        {
+            //store current count in last codebyte
+            out_buf[codebyte] = count_to_zero;
+
+            //load new codebyte at current output byte
             codebyte = out_idx;
-            count = 1
+
+            //increment output index
+            out_idx++;
+
+            //reset count to 1
+            count_to_zero = 1;
+
         }
-        else output[out_idx] = payload[i];
+
+        //check if zero is present in payload 
+        if(payload[i] == 0x00)
+        {
+
+            //store current count in last codebyte
+            out_buf[codebyte] = count_to_zero;
+
+            //load new codebyte at current output byte
+            codebyte = out_idx;
+
+            //reset count to 1
+            count_to_zero = 1;
+        }
+
+        //if not zero, store data byte and increment counter
+        else
+        {
+            out_buf[out_idx] = payload[i];
+            count_to_zero++;
+        }
         out_idx++;
     }
+
+    //after payload, add delimiter
+    //if empty payload, add initial 0x01
+    if(payload_len == 0) out_buf[0] = 0x01;
+    out_buf[out_idx] = 0x00;
     
 }
 
