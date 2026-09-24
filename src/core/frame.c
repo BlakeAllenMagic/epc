@@ -4,27 +4,30 @@
 
 #define DELIM 0x00
 
-//ENCODER 
-// output is complete and ready to hand to UART
+/*
+Encodes the given payload into the EPC frame format and stores it in the output buffer.
+Returns the length of the encoded frame on success, or a negative error code on failure.
+*/
 int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_buf, size_t out_cap)
 {
-
-    // initialize encoding indexes
+    // initialize counters
     uint16_t count_to_zero = 1;
     size_t codebyte = 0;
     size_t out_idx = 1;
 
+    // check if payload length exceeds maximum allowed
     if(payload_len > EPC_FRAME_MAX_PAYLOAD)
         return EPC_FRAME_TOO_LARGE;
-    //check if encoded payload length will be larger than output buf
-    if(EPC_FRAME_ENCODED_LEN(payload_len) > out_buf)
+
+    // check if output buffer is large enough to hold the encoded frame
+    if(EPC_FRAME_ENCODED_LEN(payload_len) > out_cap)
         return EPC_FRAME_ERR_OVERFLOW;
 
     /* PAYLOAD ENCODING BEGIN */
     for(size_t i = 0; i < payload_len; i++){
 
         //check if 0xFF count (doesn't use up an input byte)
-        if(count_to_zero = 0xFF)
+        if(count_to_zero == 0xFF)
         {
             //store current count in last codebyte
             out_buf[codebyte] = count_to_zero;
@@ -63,18 +66,16 @@ int epc_frame_encode(const uint8_t *payload, size_t payload_len, uint8_t *out_bu
         out_idx++;
     }
     
-
-    //after payload, add delimiter
-    //if empty payload, add initial 0x01
-    if(payload_len == 0) out_buf[0] = 0x01;
+    //after payload, update last codebyte and add delimiter
+    out_buf[codebyte] = count_to_zero;
     out_buf[out_idx] = 0x00;
     /* PAYLOAD PROCESSING END */
-    
+    return EPC_FRAME_OK; // return total frame length
 }
 
 /*
-Decodes current frame from input buffer.
-Caller passes input buffer and length and struct pointer
+Decodes the EPC frame from the input buffer and stores the payload in the frame buffer.
+Returns the length of the decoded frame on success, or a negative error code on failure.
 */
 int epc_frame_decode(const uint8_t *input_buf, int in_len,
                         uint8_t *frame_buf, int frame_cap)
@@ -133,8 +134,8 @@ int epc_frame_decode(const uint8_t *input_buf, int in_len,
             // {
             //     /* FRAMING ERROR */
             // }
-
-            if (bytes_to_next_codebyte != 0) return EPC_FRAME_ERR_MALFORMED;
+            if (frame_start) return EPC_FRAME_ERR_MALFORMED; //empty frame
+            if (bytes_to_next_codebyte != 0) return EPC_FRAME_ERR_MALFORMED; //detected code byte when not expected
             return frame_idx;
         }
         /* DELIMITER PROCESSING END */
