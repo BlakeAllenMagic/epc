@@ -28,7 +28,6 @@ typedef enum {
     EPC_FRAME_ERR_NULL_PTR       = -6, // null pointer 
     // encode errors
     EPC_FRAME_ERR_OVERFLOW      = -4, // encoded exceeds output buffer size
-    EPC_FRAME_OK                = 0, // frame correctly encoded
     // decode errors
     EPC_FRAME_ERR_MALFORMED     = -2, // delimiter detected mid frame
     EPC_FRAME_ERR_TRUNCATED     = -3, // truncated frame
