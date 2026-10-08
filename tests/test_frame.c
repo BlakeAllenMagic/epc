@@ -5,11 +5,12 @@
 int main(void)
 {
     //always use max buffer size
-    uint8_t buf[EPC_FRAME_MAX_ENCODED]; //261
+    uint8_t buf[EPC_FRAME_MAX_ENCODED+1]; //262 to test all scenarios, including where buffer is completely filled
     const uint8_t initial = 0xAC;
     const uint8_t nonzero = 0x01;
     
     /* ENCODER FUNCTION TESTS */
+    PUT THEM IN FUNCTIONS THAT MAIN CALLS
     //NULL payload, zero length
     static const uint8_t empty_payload_expected[]      = {0x03, 0xFF, 0xFF, 0x00}; //codebyte, 2x CRC bytes (0xFFFF) for NULL payload, delim
     memset(buf, initial, sizeof(buf)); //set all buffer to value to check against
@@ -50,6 +51,20 @@ int main(void)
     CHECK_EQ(buf[256], initial); //check no extra writes
     
     //payload with 256 non-zero bytes (258 total bytes to encode, at max payload limit)
+    uint8_t max_payload[256];
+    memset(max_payload, nonzero, sizeof(max_payload));
+    memset(buf, initial, sizeof(buf)); //reset all buffer to value to check against
+    result = epc_frame_encode(max_payload, sizeof(max_payload), buf, sizeof(buf)); //test 256 nonzero payload
+    CHECK_EQ(result, EPC_FRAME_MAX_ENCODED); //check size is correct (max encoded size)
+    CHECK_EQ(buf[0], 0xFF); //check codebyte is max
+    CHECK_EQ(memcmp(&buf[1], max_payload, sizeof(max_payload)-2), 0); //check first 254 bytes of payload are unchanged
+    CHECK_EQ(buf[255], 0x05); //check extra codebyte
+    CHECK_EQ(memcmp(&buf[256], max_payload+254, 2), 0); //check last 2 bytes of payload are unchanged    
+    CHECK_EQ(buf[258], 0x91); //check CRC matches expected
+    CHECK_EQ(buf[259], 0xDC); //check CRC matches
+    CHECK_EQ(buf[260], 0x00); //check delim
+    CHECK_EQ(buf[261], initial); //check delim
+    
     //payload at 257 bytes (one over max payload limit)
     //payload larger than out_cap size limit
     //payload at exactly out_cap size limit
