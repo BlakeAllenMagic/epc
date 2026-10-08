@@ -127,6 +127,10 @@ int epc_frame_decode(const uint8_t *input_buf, size_t in_len,
     if(frame_buf == NULL)
         return EPC_FRAME_ERR_NULL_PTR;
 
+    // check if frame cap provided doesn't account for max frame)
+    if(frame_cap < EPC_FRAME_MAX_DECODED)
+        return EPC_FRAME_ERR_OVERFLOW;
+
     //encoded payload processing
     for(size_t i = 0; i < in_len; i++)
     {   
@@ -144,7 +148,7 @@ int epc_frame_decode(const uint8_t *input_buf, size_t in_len,
                 // insert zero if not start of frame
                 if(!frame_start && !prev_ff)
                 {   
-                    if(frame_idx >= frame_cap) return EPC_FRAME_ERR_TOO_LARGE;
+                    if(frame_idx >= EPC_FRAME_MAX_DECODED) return EPC_FRAME_ERR_TOO_LARGE; //incoming frame exceeds frame buffer
                     frame_buf[frame_idx++] = 0x00;
                     // else overflow = true; // streaming implementation
                 }
@@ -157,7 +161,7 @@ int epc_frame_decode(const uint8_t *input_buf, size_t in_len,
             else
             {
                 // store data byte
-                if(frame_idx >= frame_cap) return EPC_FRAME_ERR_TOO_LARGE;
+                if(frame_idx >= EPC_FRAME_MAX_DECODED) return EPC_FRAME_ERR_TOO_LARGE; //incoming frame exceeds frame buffer
                 frame_buf[frame_idx++] = current_byte;
 
                 // else overflow = true; //streaming implentation
@@ -175,14 +179,16 @@ int epc_frame_decode(const uint8_t *input_buf, size_t in_len,
             //     /* FRAMING ERROR */
             // }
             if(frame_start) continue; //ignore 00
-            if(bytes_to_next_codebyte != 0) return EPC_FRAME_ERR_MALFORMED; //frame cut short
-            if(frame_idx < 2) return EPC_FRAME_ERR_TRUNCATED; //payload too small
+            if(bytes_to_next_codebyte != 0) return EPC_FRAME_ERR_MALFORMED; //delimiter detected midframe
+            if(frame_idx < 2) return EPC_FRAME_ERR_MALFORMED; //too short to hold CRC, bad data
             // check CRC, should equal 0 due to crc(payload + crc) = 0 in crc16_ccitt_false
-            if(crc16_ccitt_false(frame_buf, frame_idx) == 0)
-                return frame_idx - 2; //return payload length only, not crc
-            else return EPC_FRAME_ERR_CRC_MISMATCH;
+            if(crc16_ccitt_false(frame_buf, frame_idx) != 0)
+                return EPC_FRAME_ERR_CRC_MISMATCH;
+                
+    
+            else return frame_idx - 2; //return payload length only, not crc
         }
         /* DELIMITER PROCESSING END */
     }  
-    return EPC_FRAME_ERR_TRUNCATED; //input ran out midframe
+    return EPC_FRAME_NEED_MORE; //no complete frame in input
 }

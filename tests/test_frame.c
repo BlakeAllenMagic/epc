@@ -130,17 +130,54 @@ static void test_encode_max(void)
     CHECK_EQ(buf[261], initial); //check no extra writes
 }
 
+// tests decoding null input buffer pointer, input empty
+static void test_decode_null_empty(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    memset(frame, initial, sizeof(frame)); //set all of frame to value to check against
+    result = epc_frame_decode(NULL, 0, frame, sizeof(frame)); //test null input buffer
+    CHECK_EQ(result, EPC_FRAME_NEED_MORE); //check return code is correct (need more data)
+    CHECK_EQ(frame[0], initial); //check frame buffer hasn't been written to
+}
+
 int main(void)
 {
     /* ENCODER FUNCTION TESTS */
-    test_encode_null_empty();
+    /* ENCODER FAILURE TESTS */
     test_encode_null_nonempty();
     test_encode_null_out();
     test_encode_too_large();
     test_encode_overflow();
+    /* ENCODER SUCCESS TESTS*/
+    test_encode_null_empty();
     test_encode_single_zero();
     test_encode_normal();
     test_encode_cobs_boundary();
     test_encode_max();
+
+    /* DECODER FUNCTION TESTS */
+    /* DECODER FAILURE TESTS*/
+    test_decode_null_nonempty();
+    test_decode_null_out();
+    test_decode_overflow();
+    test_decode_too_large();
+    test_decode_delim_malformed();
+    test_decode_too_short_malformed();
+    test_decode_crc_mismatch();
+    test_decode_only_delims_truncated();
+    test_decode_no_delim_truncated();
+
+    /* DECODER SUCCESS TESTS */
+    test_decode_null_empty(); //this isn't an error, just means no data
+    test_decode_empty_payload();
+    test_decode_leading_delim();
+    test_decode_single_zero();
+    test_decode_normal();
+    test_decode_cobs_boundary();
+    test_decode_max();
+
+    /* ROUND TRIP TEST */
+    test_round_trip();
     return check_report();
 }
