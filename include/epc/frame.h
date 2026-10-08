@@ -25,13 +25,14 @@ _Static_assert(EPC_FRAME_MAX_ENCODED == 261, "encoded size arithmetic changed");
 typedef enum {
     // common error for encode and decode
     EPC_FRAME_ERR_TOO_LARGE     = -1, // exceeds frame cap
+    EPC_FRAME_ERR_NULL_PTR       = -6, // null pointer 
     // encode errors
-    EPC_FRAME_ERR_OVERFLOW      = -4; // encoded exceeds output buffer size
-    EPC_FRAME_OK                = 0;  // frame correctly encoded
+    EPC_FRAME_ERR_OVERFLOW      = -4, // encoded exceeds output buffer size
+    EPC_FRAME_OK                = 0, // frame correctly encoded
     // decode errors
     EPC_FRAME_ERR_MALFORMED     = -2, // delimiter detected mid frame
     EPC_FRAME_ERR_TRUNCATED     = -3, // truncated frame
-    EPC_FRAME_CRC_MISMATCH      = -5,
+    EPC_FRAME_ERR_CRC_MISMATCH  = -5,
     // decode return value above zero indicates frame length
 } epc_frame_status;
 
@@ -48,16 +49,17 @@ typedef enum {
 //
 // void epc_frame_decoder_init(epc_frame_decoder *d);
 
-//ENCODER 
-// it should refuse rather than truncate. Incomplete frame is bad.
-// output is complete and ready to hand to UART
+/*
+Computes CRC (big-endian) and encodes the given payload via COBS and stores it in the output buffer.
+Returns the length of the encoded frame on success, or a negative error code on failure.
+*/
 int epc_frame_encode(const uint8_t *payload, size_t len, uint8_t *out, size_t out_cap);
 
-/* DECODER */
-// return value > 0: frame length
-// return value = 0: empty frame
-// return value < 0: error
-int epc_frame_decode(const uint8_t *input_buf, int in_len,
-                        uint8_t *frame_buf, int frame_cap);
+/*
+Decodes the EPC frame from the input buffer and stores the payload in the frame buffer.
+Returns the length of the decoded frame on success (minus CRC), or a negative error code on failure.
+*/
+int epc_frame_decode(const uint8_t *input_buf, size_t in_len,
+                        uint8_t *frame_buf, size_t frame_cap);
 
 #endif /* EPC_FRAME_H */
