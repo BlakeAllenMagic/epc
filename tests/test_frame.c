@@ -141,6 +141,18 @@ static void test_decode_null_empty(void)
     CHECK_EQ(frame[0], initial); //check frame buffer hasn't been written to
 }
 
+// tests decoding empty payload (frame with only codebyte, CRC, and delim)
+static void test_decode_empty_payload(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_empty[] = {0x03, 0xFF, 0xFF, 0x00}; //empty payload + CRC encoded with COBS
+    memset(frame, initial, sizeof(frame)); //initialize frame values to check against
+    result = epc_frame_decode(encoded, sizeof(encoded_empty), frame, sizeof(frame));
+    CHECK_EQ(result, 0);
+    CHECK_EQ(frame[2], initial);
+}
+
 int main(void)
 {
     /* ENCODER FUNCTION TESTS */
