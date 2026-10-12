@@ -130,6 +130,55 @@ static void test_encode_max(void)
     CHECK_EQ(buf[261], initial); //check no extra writes
 }
 
+// tests decoding null input buffer pointer, input is not empty
+static void test_decode_null_nonempty(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
+    memset(frame, initial, sizeof(frame)); //set all of frame to value to check against
+    result = epc_frame_decode(encoded_input, sizeof(encoded_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_NULL_PTR); //check return code is correct
+    CHECK_EQ(frame[0], initial); //check frame buffer hasn't been written to
+}
+
+// tests decoded null output buffer pointer
+static void test_decode_null_out(void)
+{
+    int result;
+    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
+    result = epc_frame_decode(encoded_input, sizeof(encoded_input), NULL, EPC_FRAME_MAX_DECODED);
+    CHECK_EQ(result, EPC_FRAME_ERR_NULL_PTR); //check return code is correct
+}
+
+// tests decoded frame buffer smaller than max allowable decoded frame
+static void test_decode_overflow(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED-1]; //frame smaller than max
+    int result;
+    memset(frame, initial, sizeof(frame)); //set frame to init val
+    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame
+    result = epc_frame_decode(encoded_input, sizeof(encoded_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_OVERFLOW); //check overflow
+    CHECK_EQ(frame[0], initial); //check frame buffer not written to
+}
+
+// tests decoded incoming frame exceeding protocol max
+static void test_decode_too_large(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t oversized_input[EPC_FRAME_MAX_ENCODED+1];
+    memset(frame, initial, sizeof(frame)); //set frame to init val
+    memset(oversized_input, nonzero, sizeof(oversized_input));
+    oversized_input[0] = 0xFF;   //set first code byte
+    oversized_input[255] = 0xFF; //set second code byte
+    result = epc_frame_decode(oversized_input, sizeof(oversized_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_TOO_LARGE); //check too large condition
+    CHECK_EQ(frame[EPC_FRAME_MAX_DECODED], initial); //check frame buffer not written after limit
+}
+
+// success tests
 // tests decoding null input buffer pointer, input empty
 static void test_decode_null_empty(void)
 {
@@ -148,7 +197,7 @@ static void test_decode_empty_payload(void)
     int result;
     uint8_t encoded_empty[] = {0x03, 0xFF, 0xFF, 0x00}; //empty payload + CRC encoded with COBS
     memset(frame, initial, sizeof(frame)); //initialize frame values to check against
-    result = epc_frame_decode(encoded, sizeof(encoded_empty), frame, sizeof(frame));
+    result = epc_frame_decode(encoded_empty, sizeof(encoded_empty), frame, sizeof(frame));
     CHECK_EQ(result, 0);
     CHECK_EQ(frame[2], initial);
 }
@@ -156,12 +205,13 @@ static void test_decode_empty_payload(void)
 int main(void)
 {
     /* ENCODER FUNCTION TESTS */
-    /* ENCODER FAILURE TESTS */
+    // encoder failure tests
     test_encode_null_nonempty();
     test_encode_null_out();
     test_encode_too_large();
     test_encode_overflow();
-    /* ENCODER SUCCESS TESTS*/
+
+    // encoder success tests
     test_encode_null_empty();
     test_encode_single_zero();
     test_encode_normal();
@@ -169,7 +219,7 @@ int main(void)
     test_encode_max();
 
     /* DECODER FUNCTION TESTS */
-    /* DECODER FAILURE TESTS*/
+    // decoder failure tests
     test_decode_null_nonempty();
     test_decode_null_out();
     test_decode_overflow();
@@ -180,8 +230,8 @@ int main(void)
     test_decode_only_delims_truncated();
     test_decode_no_delim_truncated();
 
-    /* DECODER SUCCESS TESTS */
-    test_decode_null_empty(); //this isn't an error, just means no data
+    // decoder success tests
+    test_decode_null_empty();
     test_decode_empty_payload();
     test_decode_leading_delim();
     test_decode_single_zero();
