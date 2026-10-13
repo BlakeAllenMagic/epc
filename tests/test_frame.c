@@ -178,7 +178,6 @@ static void test_decode_too_large(void)
     CHECK_EQ(frame[EPC_FRAME_MAX_DECODED], initial); //check frame buffer not written after limit
 }
 
-// success tests
 // tests decoding null input buffer pointer, input empty
 static void test_decode_null_empty(void)
 {
@@ -190,6 +189,32 @@ static void test_decode_null_empty(void)
     CHECK_EQ(frame[0], initial); //check frame buffer hasn't been written to
 }
 
+// tests decoding input with only delims
+static void test_decode_only_delims(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_delims[] = {0x00, 0x00, 0x00}; //leading delim followed by valid frame
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(encoded_delims, sizeof(encoded_delims), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_NEED_MORE);
+    CHECK_EQ(frame[0], initial); //only CRC is written
+}
+
+// tests decoding input with no delim
+static void test_decode_no_delim (void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_no_delim[] = {0x03, 0xFF, 0xFF}; //missing delim
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(encoded_no_delim, sizeof(encoded_no_delim), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_NEED_MORE);
+    CHECK_EQ(frame[0], 0xFF); //check that frame has CRC written
+    CHECK_EQ(frame[1], 0xFF);
+    CHECK_EQ(frame[2], initial); //only CRC is written
+}
+
 // tests decoding empty payload (frame with only codebyte, CRC, and delim)
 static void test_decode_empty_payload(void)
 {
@@ -199,27 +224,83 @@ static void test_decode_empty_payload(void)
     memset(frame, initial, sizeof(frame)); //initialize frame values to check against
     result = epc_frame_decode(encoded_empty, sizeof(encoded_empty), frame, sizeof(frame));
     CHECK_EQ(result, 0);
-    CHECK_EQ(frame[2], initial);
+    CHECK_EQ(frame[2], initial); //only CRC is written
+}
+
+// tests decoding input with leading delim
+static void test_decode_leading_delim(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_leading_delim[] = {0x00, 0x03, 0xFF, 0xFF, 0x00}; //leading delim followed by valid frame
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(encoded_leading_delim, sizeof(encoded_leading_delim), frame, sizeof(frame));
+    CHECK_EQ(result, 0);
+    CHECK_EQ(frame[2], initial); //only CRC is written
+}
+
+// tests decoding input with single zero payload in frame
+static void test_decode_single_zero(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    static const uint8_t encoded_single_zero[] = {0x01, 0x03, 0xE1, 0xF0, 0x00}; //single zero payload + CRC/COBS
+    static const uint8_t expected[] = {0x00, 0xE1, 0xF0}; //expected decoded payload + CRC
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(encoded_single_zero, sizeof(encoded_single_zero), frame, sizeof(frame));
+    CHECK_EQ(result, sizeof(expected)-2);
+    CHECK_EQ(memcmp(&frame[0], expected, sizeof(expected)), 0); //check single zero + CRC is in frame
+    CHECK_EQ(frame[3], initial); //only CRC is written
+}
+
+// tests decoding input with normal payload in frame
+static void test_decode_normal(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    static const uint8_t encoded_normal[] = {0x03, 0x01, 0x02, 0x04, 0x04, 0xDC, 0x90, 0x00}; //normal payload + CRC/COBS
+    static const uint8_t expected[] = {0x01, 0x02, 0x00, 0x04, 0xDC, 0x90}; //expected payload + CRC
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(encoded_normal, sizeof(encoded_normal), frame, sizeof(frame));
+    CHECK_EQ(result, sizeof(expected)-2);
+    CHECK_EQ(memcmp(&frame[0], expected, sizeof(expected)), 0); //check expected payload + CRC
+    CHECK_EQ(frame[sizeof(expected)], initial); //nothing written beyond frame
+}
+
+// tests decoding payload at COBS boundary
+static void test_decode_cobs_boundary(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_cobs_bounds[256]; //1 codebyte, 252 payload, 2 CRC, 1 delim
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    memset(encoded_cobs_bounds, nonzero, sizeof(encoded_cobs_bounds)); //place all 1s
+    encoded_cobs_bounds[0] = 0xFF; //COBS max codebyte
+    encoded_cobs_bounds[253] = 0x91; //crc first byte
+    encoded_cobs_bounds[254] = 0x10; //crc second byte
+    encoded_cobs_bounds[255] = 0x00; //delim
+    result = epc_frame_decode(encoded_cobs_bounds, sizeof(encoded_cobs_bounds), frame, sizeof(frame));
+    CHECK_EQ(result, sizeof(encoded_cobs_bounds)-4); //minus code byte, CRC, and delimiter
+    CHECK_EQ(memcmp(&frame[0], &encoded_cobs_bounds[1], sizeof(encoded_cobs_bounds)-2), 0); //check expected payload + CRC matches (as no zeroes in decoded)
+    CHECK_EQ(frame[254], initial); //nothing written beyond frame
 }
 
 int main(void)
 {
-    /* ENCODER FUNCTION TESTS */
-    // encoder failure tests
+    /* ENCODER FAILURE TESTS */
     test_encode_null_nonempty();
     test_encode_null_out();
     test_encode_too_large();
     test_encode_overflow();
 
-    // encoder success tests
+    /* ENCODER SUCCESS TESTS */
     test_encode_null_empty();
     test_encode_single_zero();
     test_encode_normal();
     test_encode_cobs_boundary();
     test_encode_max();
 
-    /* DECODER FUNCTION TESTS */
-    // decoder failure tests
+    /* DECODER FAILURE TESTS */
     test_decode_null_nonempty();
     test_decode_null_out();
     test_decode_overflow();
@@ -227,11 +308,13 @@ int main(void)
     test_decode_delim_malformed();
     test_decode_too_short_malformed();
     test_decode_crc_mismatch();
-    test_decode_only_delims_truncated();
-    test_decode_no_delim_truncated();
 
-    // decoder success tests
+    /* DECODER 'NEED-MORE" TESTS */
     test_decode_null_empty();
+    test_decode_only_delims();
+    test_decode_no_delim();
+
+    /* DECODER SUCCESS TESTS */
     test_decode_empty_payload();
     test_decode_leading_delim();
     test_decode_single_zero();
