@@ -288,7 +288,7 @@ static void test_decode_normal(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    static const uint8_t encoded_normal[] = {0x03, 0x02, 0x02, 0x04, 0x04, 0xDC, 0x90, 0x00}; //normal payload + CRC/COBS
+    static const uint8_t encoded_normal[] = {0x03, 0x01, 0x02, 0x04, 0x04, 0xDC, 0x90, 0x00}; //normal payload + CRC/COBS
     static const uint8_t expected[] = {0x01, 0x02, 0x00, 0x04, 0xDC, 0x90}; //expected payload + CRC
     memset(frame, initial, sizeof(frame)); //initialize frame values 
     result = epc_frame_decode(encoded_normal, sizeof(encoded_normal), frame, sizeof(frame));
