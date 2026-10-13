@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "string.h"
+#include "epc/frame.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -104,7 +105,14 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
+  static const uint8_t test_payload[] = {0x11, 0x22, 0x00, 0x33};
+  static uint8_t frame_buf[EPC_FRAME_MAX_ENCODED];
 
+  int frame_len = epc_frame_encode(test_payload, sizeof(test_payload),
+                                  frame_buf, sizeof(frame_buf));
+  if (frame_len < 0) {
+      Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Infinite loop */
