@@ -145,7 +145,7 @@ static void test_decode_null_nonempty(void)
 static void test_decode_null_out(void)
 {
     int result;
-    static const uint8_t encoded_input[] = {0x04, 0x02, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
+    static const uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
     result = epc_frame_decode(encoded_input, sizeof(encoded_input), NULL, EPC_FRAME_MAX_DECODED);
     CHECK_EQ(result, EPC_FRAME_ERR_NULL_PTR); //check return code is correct
 }
@@ -288,7 +288,7 @@ static void test_decode_normal(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    static const uint8_t encoded_normal[] = {0x03, 0x01, 0x02, 0x04, 0x04, 0xDC, 0x90, 0x00}; //normal payload + CRC/COBS
+    static const uint8_t encoded_normal[] = {0x03, 0x02, 0x02, 0x04, 0x04, 0xDC, 0x90, 0x00}; //normal payload + CRC/COBS
     static const uint8_t expected[] = {0x01, 0x02, 0x00, 0x04, 0xDC, 0x90}; //expected payload + CRC
     memset(frame, initial, sizeof(frame)); //initialize frame values 
     result = epc_frame_decode(encoded_normal, sizeof(encoded_normal), frame, sizeof(frame));
