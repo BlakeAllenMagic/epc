@@ -1,3 +1,5 @@
+[![CI](https://github.com/BlakeAllenMagic/epc/actions/workflows/ci.yaml/badge.svg)](https://github.com/BlakeAllenMagic/epc/actions/workflows/ci.yaml)
+
 # EPC
 Embedded Platform Controller.
 This is a general-use embedded platform controller to manage an embedded system, including validating data, logging events, and ensuring fault-tolerant operation.
