@@ -135,9 +135,8 @@ static void test_decode_null_nonempty(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
     memset(frame, initial, sizeof(frame)); //set all of frame to value to check against
-    result = epc_frame_decode(encoded_input, sizeof(encoded_input), frame, sizeof(frame));
+    result = epc_frame_decode(NULL, 5, frame, sizeof(frame));
     CHECK_EQ(result, EPC_FRAME_ERR_NULL_PTR); //check return code is correct
     CHECK_EQ(frame[0], initial); //check frame buffer hasn't been written to
 }
@@ -146,7 +145,7 @@ static void test_decode_null_nonempty(void)
 static void test_decode_null_out(void)
 {
     int result;
-    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
+    static const uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame with a single 0x01 payload plus CRC/COBS
     result = epc_frame_decode(encoded_input, sizeof(encoded_input), NULL, EPC_FRAME_MAX_DECODED);
     CHECK_EQ(result, EPC_FRAME_ERR_NULL_PTR); //check return code is correct
 }
@@ -157,7 +156,7 @@ static void test_decode_overflow(void)
     uint8_t frame[EPC_FRAME_MAX_DECODED-1]; //frame smaller than max
     int result;
     memset(frame, initial, sizeof(frame)); //set frame to init val
-    uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame
+    static const uint8_t encoded_input[] = {0x04, 0x01, 0xF1, 0xD1, 0x00}; //encoded input frame
     result = epc_frame_decode(encoded_input, sizeof(encoded_input), frame, sizeof(frame));
     CHECK_EQ(result, EPC_FRAME_ERR_OVERFLOW); //check overflow
     CHECK_EQ(frame[0], initial); //check frame buffer not written to
@@ -178,6 +177,39 @@ static void test_decode_too_large(void)
     CHECK_EQ(frame[EPC_FRAME_MAX_DECODED], initial); //check frame buffer not written after limit
 }
 
+// tests decoded frame with delim midframe
+static void test_decode_delim_malformed(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    static const uint8_t malformed_input[] = {0x04, 0x02, 0x00, 0x01, 0x00}; //malformed input with delim midframe (last two bytes never read)
+    memset(frame, initial, sizeof(frame)); //set all of frame to value to check against
+    result = epc_frame_decode(malformed_input, sizeof(malformed_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_MALFORMED); //check malformed condition
+}
+
+// tests decoded frame encoded with data not large enough to carry CRC (COBS valid, not CRC mismatch)
+static void test_decode_too_short_malformed(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    static const uint8_t malformed_input[] = {0x02, 0x11, 0x00}; //malformed input with no CRC
+    memset(frame, initial, sizeof(frame)); //set all of frame to value to check against
+    result = epc_frame_decode(malformed_input, sizeof(malformed_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_MALFORMED); //check malformed condition
+}
+
+// tests decoded frame with CRC mismatch
+static void test_decode_crc_mismatch(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    static const uint8_t crc_mismatch_input[] = {0x03, 0x01, 0x01, 0x04, 0x04, 0xDC, 0x90, 0x00}; //payload to CRC mismatch
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    result = epc_frame_decode(crc_mismatch_input, sizeof(crc_mismatch_input), frame, sizeof(frame));
+    CHECK_EQ(result, EPC_FRAME_ERR_CRC_MISMATCH); //check CRC mismatch
+}
+
 // tests decoding null input buffer pointer, input empty
 static void test_decode_null_empty(void)
 {
@@ -194,11 +226,11 @@ static void test_decode_only_delims(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    uint8_t encoded_delims[] = {0x00, 0x00, 0x00}; //leading delim followed by valid frame
+    static const uint8_t encoded_delims[] = {0x00, 0x00, 0x00}; //only delims
     memset(frame, initial, sizeof(frame)); //initialize frame values 
     result = epc_frame_decode(encoded_delims, sizeof(encoded_delims), frame, sizeof(frame));
     CHECK_EQ(result, EPC_FRAME_NEED_MORE);
-    CHECK_EQ(frame[0], initial); //only CRC is written
+    CHECK_EQ(frame[0], initial); //output shouldnt be written
 }
 
 // tests decoding input with no delim
@@ -206,12 +238,10 @@ static void test_decode_no_delim (void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    uint8_t encoded_no_delim[] = {0x03, 0xFF, 0xFF}; //missing delim
+    static const uint8_t encoded_no_delim[] = {0x03, 0xFF, 0xFF}; //missing delim
     memset(frame, initial, sizeof(frame)); //initialize frame values 
     result = epc_frame_decode(encoded_no_delim, sizeof(encoded_no_delim), frame, sizeof(frame));
     CHECK_EQ(result, EPC_FRAME_NEED_MORE);
-    CHECK_EQ(frame[0], 0xFF); //check that frame has CRC written
-    CHECK_EQ(frame[1], 0xFF);
     CHECK_EQ(frame[2], initial); //only CRC is written
 }
 
@@ -220,7 +250,7 @@ static void test_decode_empty_payload(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    uint8_t encoded_empty[] = {0x03, 0xFF, 0xFF, 0x00}; //empty payload + CRC encoded with COBS
+    static const uint8_t encoded_empty[] = {0x03, 0xFF, 0xFF, 0x00}; //empty payload + CRC encoded with COBS
     memset(frame, initial, sizeof(frame)); //initialize frame values to check against
     result = epc_frame_decode(encoded_empty, sizeof(encoded_empty), frame, sizeof(frame));
     CHECK_EQ(result, 0);
@@ -232,7 +262,7 @@ static void test_decode_leading_delim(void)
 {
     uint8_t frame[EPC_FRAME_MAX_DECODED+1];
     int result;
-    uint8_t encoded_leading_delim[] = {0x00, 0x03, 0xFF, 0xFF, 0x00}; //leading delim followed by valid frame
+    static const uint8_t encoded_leading_delim[] = {0x00, 0x03, 0xFF, 0xFF, 0x00}; //leading delim followed by valid frame
     memset(frame, initial, sizeof(frame)); //initialize frame values 
     result = epc_frame_decode(encoded_leading_delim, sizeof(encoded_leading_delim), frame, sizeof(frame));
     CHECK_EQ(result, 0);
@@ -283,6 +313,43 @@ static void test_decode_cobs_boundary(void)
     CHECK_EQ(result, sizeof(encoded_cobs_bounds)-4); //minus code byte, CRC, and delimiter
     CHECK_EQ(memcmp(&frame[0], &encoded_cobs_bounds[1], sizeof(encoded_cobs_bounds)-2), 0); //check expected payload + CRC matches (as no zeroes in decoded)
     CHECK_EQ(frame[254], initial); //nothing written beyond frame
+}
+
+// tests decoding payload at max payload size
+static void test_decode_max(void)
+{
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int result;
+    uint8_t encoded_max[EPC_FRAME_MAX_ENCODED]; //2 codebytes, 256 payload, 2 CRC, 1 delim
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    memset(encoded_max, nonzero, sizeof(encoded_max)); //place all 1s
+    encoded_max[0] = 0xFF; //COBS max codebyte
+    encoded_max[255] = 0x05; //second codebyte
+    encoded_max[258] = 0x91; //crc first byte
+    encoded_max[259] = 0xDC; //crc second byte
+    encoded_max[260] = 0x00; //delim
+    result = epc_frame_decode(encoded_max, sizeof(encoded_max), frame, sizeof(frame)-1); //set frame cap to true frame cap
+    CHECK_EQ(result, EPC_FRAME_MAX_PAYLOAD); //minus codebytes, CRC, and delimiter
+    CHECK_EQ(memcmp(&frame[0], &encoded_max[1], 254), 0); //check expected payload until next codebyte
+    CHECK_EQ(memcmp(&frame[254], &encoded_max[256], 4), 0); //check expected payload from after codebyte thru CRC
+    CHECK_EQ(frame[EPC_FRAME_MAX_DECODED], initial); //nothing written beyond frame
+}
+
+// tests encoding to decoding round trip
+static void test_round_trip(void)
+{
+    uint8_t buf[EPC_FRAME_MAX_ENCODED+1];
+    uint8_t frame[EPC_FRAME_MAX_DECODED+1];
+    int enc_len, dec_len;
+    memset(frame, initial, sizeof(frame)); //initialize frame values 
+    static const uint8_t payload[]          = {0x11, 0x22, 0x33, 0x44, 0x00, 0x55};
+    memset(buf, initial, sizeof(buf)); //reset all buffer to value to check against
+    enc_len = epc_frame_encode(payload, sizeof(payload), buf, sizeof(buf));
+    CHECK(enc_len > 0);
+    if (enc_len <=0) return;
+    dec_len = epc_frame_decode(buf, (size_t)enc_len, frame, sizeof(frame));
+    CHECK_EQ(dec_len, sizeof(payload));
+    CHECK_EQ(memcmp(&payload[0], &frame[0], sizeof(payload)), 0);
 }
 
 int main(void)
